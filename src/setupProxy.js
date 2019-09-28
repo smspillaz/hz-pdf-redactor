@@ -49,4 +49,13 @@ module.exports = app => {
       'data': files
     });
   });
+
+  app.get('/api/pdf/:rest', async (req, res) => {
+    let path = req.params.rest;
+
+    let root = `${process.env.HOME}/Documents/Redactions`;
+    var data = fs.readFileSync(`${root}/${path}`);
+    res.contentType("application/pdf");
+    res.send(data);
+  });
 };

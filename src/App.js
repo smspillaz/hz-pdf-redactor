@@ -106,19 +106,19 @@ function RenderOnPdfAvailable({ children, pdfDocument, beforeLoad }) {
   return pdfDocument ? children(pdfDocument) : beforeLoad;
 }
 
-function RecursiveTreeItem({ nodeId, label, tree }) {
+function RecursiveTreeItem({ nodeId, label, tree, callback, abspath }) {
   return (
     <TreeItem nodeId={nodeId} label={label}>
       {Object.keys(tree).map((key, i) => (
         typeof(tree[key]) === 'object' ? (
-          <RecursiveTreeItem nodeId={`${i}`} label={key} tree={tree[key]} key={key} />
-        ) : <TreeItem nodeId={`${i}`} label={key} key={key} />
+          <RecursiveTreeItem nodeId={`${i}`} label={key} tree={tree[key]} key={key} callback={callback} abspath={[abspath, key].join('/')}/>
+        ) : <TreeItem nodeId={`${i}`} label={key} key={key} onClick={()=>callback([abspath, key].join('/'))} />
       ))}
     </TreeItem>
   )
 }
 
-function FileSystemNavigator({ tree }) {
+function FileSystemNavigator({ tree, callback }) {
   const classes = useStyles();
 
   return (
@@ -127,7 +127,7 @@ function FileSystemNavigator({ tree }) {
       defaultCollapseIcon={<ExpandMoreIcon />}
       defaultExpandIcon={<ChevronRightIcon />}
     >
-      <RecursiveTreeItem nodeId={"1"} tree={tree} label="/"/>
+      <RecursiveTreeItem nodeId={"1"} tree={tree} label="/" callback={callback} abspath="" />
     </TreeView>
   );
 };
@@ -204,11 +204,16 @@ function App() {
         </IconButton>
       </div>
       <Divider />
-      <FileSystemNavigator tree={documentTree} />
+      <FileSystemNavigator tree={documentTree} callback={e => {
+        setUrl(`/api/pdf${e}`);
+        debugger;
+       }} />
     </div>
   );
 
   useEffect(() => {
+    setPdfDocument(null);
+    setPdfText('');
     pdfjsLib.getDocument(url)
       .then(document => {
         setPdfDocument(document);

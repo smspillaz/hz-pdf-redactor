@@ -327,7 +327,7 @@ function App() {
   const theme = useTheme();
 
   const [open, setOpen] = React.useState(false);
-  const [highlights, setHighlights] = React.useState([]);
+  const [highlights, setHighlights] = React.useState({});
   const [documentTree, setDocumentTree] = React.useState({});
   const [pdfText, setPdfText] = React.useState('');
   const [pdfDocument, setPdfDocument] = React.useState(null);
@@ -360,13 +360,19 @@ function App() {
   );
 
   useEffect(() => {
-    setPdfDocument(null);
-    setPdfText('');
-    pdfjsLib.getDocument(url)
-      .then(document => {
-        setPdfDocument(document);
-        return getPDFText(document);
-      }).then(text => setPdfText(text));
+    if (url) {
+      setHighlights(highlights => ({
+        ...highlights,
+        [url]: highlights[url] || []
+      }));
+      setPdfDocument(null);
+      setPdfText('');
+      pdfjsLib.getDocument(url)
+        .then(document => {
+          setPdfDocument(document);
+          return getPDFText(document);
+        }).then(text => setPdfText(text));
+    }
   }, [url]);
 
   useEffect(() => {
@@ -378,30 +384,38 @@ function App() {
   }, []);
 
   const resetHighlights = () => {
-    setHighlights([]);
+    setHighlights({
+      [url]: []
+    });
   };
 
   const getHighlightById = (id) => {
-    return highlights.find(highlight => highlight.id === id);
+    return highlights[url].find(highlight => highlight.id === id);
   }
 
   const addHighlight = (highlight) => {
     console.log("Saving highlight", highlight);
-    setHighlights([{ ...highlight, id: getNextId() }, ...highlights]);
+    setHighlights({
+      ...highlights,
+      [url]: [{ ...highlight, id: getNextId() }, ...highlights[url]]
+    });
   }
 
   const updateHighlight = (highlightId, position, content) => {
     console.log("Updating highlight", highlightId, position, content);
 
-    setHighlights(highlights.map(h => {
-      return h.id === highlightId
-        ? {
-            ...h,
-            position: { ...h.position, ...position },
-            content: { ...h.content, ...content }
-          }
-        : h;
-    }));
+    setHighlights({
+      ...highlights,
+      [url]: highlights[url].map(h => {
+        return h.id === highlightId
+          ? {
+              ...h,
+              position: { ...h.position, ...position },
+              content: { ...h.content, ...content }
+            }
+          : h;
+      })
+    });
   };
 
   const highlightsOverlap = (h1, h2) => {
@@ -437,12 +451,12 @@ function App() {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" color="inherit" className={classes.grow}>
-            {url}
+            {url ? url.split('/').splice(3).join('/') : ''}
           </Typography>
           <Button
             color="inherit"
             onClick={() => {
-              const offsets = findHighlightOffsets(pdfText, highlights);
+              const offsets = findHighlightOffsets(pdfText, highlights[url]);
               fetch('http://localhost:5000/update', {
                 method: 'POST',
                 headers: {
@@ -451,6 +465,7 @@ function App() {
                 },
                 body: JSON.stringify({
                   model: 'en_core_web_sm',
+                  url,
                   redactions: {
                     text: pdfText,
                     offsets,
@@ -469,7 +484,6 @@ function App() {
             color="inherit"
             disabled={!pdfText}
             onClick={() => {
-              setSuggesting(true);
               fetch('http://localhost:5000/ent', {
                 method: 'POST',
                 headers: {
@@ -488,11 +502,13 @@ function App() {
                  ))
               ).then(
                 (foundHighlights) => {
-                  setHighlights(highlights.concat(foundHighlights.map(h => ({
-                    ...h,
-                    id: getNextId()
-                  }))));
-                  setSuggesting(false);
+                  setHighlights({
+                    ...highlights,
+                    [url]: (highlights[url] || []).concat(foundHighlights.map(h => ({
+                      ...h,
+                      id: getNextId()
+                    })))
+                  });
                 }
               );
             }}
@@ -523,7 +539,7 @@ function App() {
         {sideList('left')}
       </Drawer>
       <div
-        onClick={(event) => {for (const v of highlights.values()) console.log(v.position.boundingRect) } }
+        onClick={(event) => {for (const v of highlights[url].values()) console.log(v.position.boundingRect) } }
         className={clsx(classes.content, {
           [classes.contentShift]: open,
         })}
@@ -539,7 +555,11 @@ function App() {
         >
           <RenderOnPdfAvailable
             pdfDocument={pdfDocument}
-            beforeLoad={<div />}>
+            beforeLoad={
+              <Typography paragraph>{
+                `${url ? `Loading ${url}` : 'Select a document on the left to get started'}`
+              }</Typography>
+            }>
             {pdfDocument => (
               <PdfHighlighter
                 pdfDocument={pdfDocument}
@@ -581,7 +601,6 @@ function App() {
                           backgroundColor: highlight.color,
                         }))
                       }}
-                      position={highlight.position}
                       comment={highlight.comment}
                       onClick={ () => {                        
                         setHighlights(highlights.filter(
@@ -616,7 +635,7 @@ function App() {
                     />
                   );
                 }}
-                highlights={highlights}
+                highlights={highlights[url]}
               />
             )}
           </RenderOnPdfAvailable>

@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import './App.css';
 import AppBar from '@material-ui/core/AppBar';
 import Button from '@material-ui/core/Button';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Drawer from '@material-ui/core/Drawer';
-import List from '@material-ui/core/List';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
 import { makeStyles, useTheme } from '@material-ui/core/styles';
@@ -13,14 +12,22 @@ import MenuIcon from '@material-ui/icons/Menu';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 import Divider from '@material-ui/core/Divider';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
-import ListItemText from '@material-ui/core/ListItemText';
-import InboxIcon from '@material-ui/icons/MoveToInbox';
-import MailIcon from '@material-ui/icons/Mail';
-import Typography from '@material-ui/core/Typography';
+import TreeView from '@material-ui/lab/TreeView';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import TreeItem from '@material-ui/lab/TreeItem';
+
+import {
+  PdfHighlighter,
+  Highlight,
+  Popup,
+  AreaHighlight
+} from 'react-pdf-highlighter';
+
+import pdfjsLib from 'pdfjs-dist/webpack';
 
 const drawerWidth = 240;
+
+const getNextId = () => String(Math.random()).slice(2);
 
 const useStyles = makeStyles(theme => ({
   root: {
@@ -86,13 +93,58 @@ const useStyles = makeStyles(theme => ({
   fullList: {
     width: 'auto',
   },
+  treeView: {
+    height: 216,
+    flexGrow: 1,
+    maxWidth: 400,
+  },
 }));
+
+const DEFAULT_URL = "https://arxiv.org/pdf/1708.08021.pdf";
+
+function PdfLoader({ url, children, beforeLoad }) {
+  const [pdfDocument, setPdfDocument] = useState(null);
+
+  useEffect(() => {
+    pdfjsLib.getDocument(url).then(document => setPdfDocument(document))
+  }, [url]);
+
+  return pdfDocument ? children(pdfDocument) : beforeLoad;
+}
+
+function RecursiveTreeItem({ nodeId, label, tree }) {
+  return (
+    <TreeItem nodeId={nodeId} label={label}>
+      {Object.keys(tree).map((key, i) => (
+        typeof(tree[key]) === 'object' ? (
+          <RecursiveTreeItem nodeId={`${i}`} label={key} tree={tree[key]} key={key} />
+        ) : <TreeItem nodeId={`${i}`} label={key} key={key} />
+      ))}
+    </TreeItem>
+  )
+}
+
+function FileSystemNavigator({ tree }) {
+  const classes = useStyles();
+
+  return (
+    <TreeView
+      className={classes.treeView}
+      defaultCollapseIcon={<ExpandMoreIcon />}
+      defaultExpandIcon={<ChevronRightIcon />}
+    >
+      <RecursiveTreeItem nodeId={"1"} tree={tree} label="/"/>
+    </TreeView>
+  );
+}
 
 function App() {
   const classes = useStyles();
   const theme = useTheme();
 
   const [open, setOpen] = React.useState(false);
+  const [highlights, setHighlights] = React.useState([]);
+  const [documentTree, setDocumentTree] = React.useState({});
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -113,25 +165,47 @@ function App() {
         </IconButton>
       </div>
       <Divider />
-      <List>
-        {['Inbox', 'Starred', 'Send email', 'Drafts'].map((text, index) => (
-          <ListItem button key={text}>
-            <ListItemIcon>{index % 2 === 0 ? <InboxIcon /> : <MailIcon />}</ListItemIcon>
-            <ListItemText primary={text} />
-          </ListItem>
-        ))}
-      </List>
-      <Divider />
-      <List>
-        {['All mail', 'Trash', 'Spam'].map((text, index) => (
-          <ListItem button key={text}>
-            <ListItemIcon>{index % 2 === 0 ? <InboxIcon /> : <MailIcon />}</ListItemIcon>
-            <ListItemText primary={text} />
-          </ListItem>
-        ))}
-      </List>
+      <FileSystemNavigator tree={documentTree} />
     </div>
   );
+
+  useEffect(() => {
+    fetch('/api/list_documents')
+      .then(res => res.json())
+      .then((response) => {
+        setDocumentTree(response.data);
+      });
+  }, []);
+
+  const resetHighlights = () => {
+    setHighlights([]);
+  };
+
+  const getHighlightById = (id) => {
+    return highlights.find(highlight => highlight.id === id);
+  }
+
+  const addHighlight = (highlight) => {
+    console.log("Saving highlight", highlight);
+
+    setHighlights([{ ...highlight, id: getNextId() }, ...highlights]);
+  }
+
+  const updateHighlight = (highlightId, position, content) => {
+    console.log("Updating highlight", highlightId, position, content);
+
+    setHighlights(highlights.map(h => {
+      return h.id === highlightId
+        ? {
+            ...h,
+            position: { ...h.position, ...position },
+            content: { ...h.content, ...content }
+          }
+        : h;
+    }));
+  };
+
+  const url = DEFAULT_URL;
 
   return (
     <div className={classes.root}>
@@ -172,29 +246,76 @@ function App() {
         })}
       >
         <div className={classes.drawerHeader} />
-        <Typography paragraph>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-          ut labore et dolore magna aliqua. Rhoncus dolor purus non enim praesent elementum
-          facilisis leo vel. Risus at ultrices mi tempus imperdiet. Semper risus in hendrerit
-          gravida rutrum quisque non tellus. Convallis convallis tellus id interdum velit laoreet id
-          donec ultrices. Odio morbi quis commodo odio aenean sed adipiscing. Amet nisl suscipit
-          adipiscing bibendum est ultricies integer quis. Cursus euismod quis viverra nibh cras.
-          Metus vulputate eu scelerisque felis imperdiet proin fermentum leo. Mauris commodo quis
-          imperdiet massa tincidunt. Cras tincidunt lobortis feugiat vivamus at augue. At augue eget
-          arcu dictum varius duis at consectetur lorem. Velit sed ullamcorper morbi tincidunt. Lorem
-          donec massa sapien faucibus et molestie ac.
-        </Typography>
-        <Typography paragraph>
-          Consequat mauris nunc congue nisi vitae suscipit. Fringilla est ullamcorper eget nulla
-          facilisi etiam dignissim diam. Pulvinar elementum integer enim neque volutpat ac
-          tincidunt. Ornare suspendisse sed nisi lacus sed viverra tellus. Purus sit amet volutpat
-          consequat mauris. Elementum eu facilisis sed odio morbi. Euismod lacinia at quis risus sed
-          vulputate odio. Morbi tincidunt ornare massa eget egestas purus viverra accumsan in. In
-          hendrerit gravida rutrum quisque non tellus orci ac. Pellentesque nec nam aliquam sem et
-          tortor. Habitant morbi tristique senectus et. Adipiscing elit duis tristique sollicitudin
-          nibh sit. Ornare aenean euismod elementum nisi quis eleifend. Commodo viverra maecenas
-          accumsan lacus vel facilisis. Nulla posuere sollicitudin aliquam ultrices sagittis orci a.
-        </Typography>
+        <div
+          style={{
+            height: "100vh",
+            width: "75vw",
+            overflowY: "scroll",
+            position: "relative"
+          }}
+        >
+          <PdfLoader url={url} beforeLoad={<div />}>
+            {pdfDocument => (
+              <PdfHighlighter
+                pdfDocument={pdfDocument}
+                enableAreaSelection={event => event.altKey}
+                onSelectionFinished={(
+                  position,
+                  content,
+                  hideTipAndSelection,
+                  transformSelection
+                ) => (
+                  addHighlight({ content, position, comment: '' })
+                )}
+                highlightTransform={(
+                  highlight,
+                  index,
+                  setTip,
+                  hideTip,
+                  viewportToScaled,
+                  screenshot,
+                  isScrolledTo
+                ) => {
+                  const isTextHighlight = !Boolean(
+                    highlight.content && highlight.content.image
+                  );
+
+                  const component = isTextHighlight ? (
+                    <Highlight
+                      isScrolledTo={isScrolledTo}
+                      position={highlight.position}
+                      comment={highlight.comment}
+                    />
+                  ) : (
+                    <AreaHighlight
+                      highlight={highlight}
+                      onChange={boundingRect => {
+                        updateHighlight(
+                          highlight.id,
+                          { boundingRect: viewportToScaled(boundingRect) },
+                          { image: screenshot(boundingRect) }
+                        );
+                      }}
+                    />
+                  );
+
+                  return (
+                    <Popup
+                      popupContent={<div />}
+                      onMouseOver={popupContent =>
+                        setTip(highlight, highlight => popupContent)
+                      }
+                      onMouseOut={hideTip}
+                      key={index}
+                      children={component}
+                    />
+                  );
+                }}
+                highlights={highlights}
+              />
+            )}
+          </PdfLoader>
+        </div>
       </div>
     </div>
   );

@@ -306,7 +306,6 @@ function App() {
       <Divider />
       <FileSystemNavigator tree={documentTree} callback={e => {
         setUrl(`/api/pdf${e}`);
-        debugger;
        }} />
     </div>
   );

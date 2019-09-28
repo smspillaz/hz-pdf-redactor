@@ -1,4 +1,5 @@
 const electron = require('electron');
+const isDev = require('electron-is-dev');
 // Module to control application life.
 const app = electron.app;
 // Module to create native browser window.
@@ -21,7 +22,7 @@ function createWindow() {
             protocol: 'file:',
             slashes: true
         });
-    mainWindow.loadURL(startUrl);
+    mainWindow.loadURL(isDev ? 'http://localhost:3000' : startUrl);
 
     // Open the DevTools.
     mainWindow.webContents.openDevTools();

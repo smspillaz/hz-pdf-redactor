@@ -2,13 +2,16 @@ from __future__ import unicode_literals
 
 from flask import Flask, request
 from flask_cors import CORS
+import re
+import os
 import spacy
 from spacy.gold import GoldParse
 import random
 from tika import parser
 from pathlib import Path
 from spacy.util import minibatch, compounding
-from pdf_redactor.pdf_redactor import redactor, RedactorOptions
+from urllib.parse import urlparse
+import pdf_redactor
 
 app = Flask(__name__)
 CORS(app)
@@ -61,6 +64,31 @@ def ent():
         for ent in doc.ents
     ]}
 
+
+def redact_pdf(location, snippitLabels):
+    """Redact the PDF at location (saving it as location.pdf.redacted.pdf)."""
+    options = pdf_redactor.RedactorOptions()
+
+    options.content_filters = [
+        (re.compile(re.escape(label["text"])), lambda m: "." * len(label["text"]))
+        for label in snippitLabels
+    ]
+
+    path = location
+    redactedpath = location + ".redacted.pdf"
+
+    with open(path, "rb") as pdfFile:
+        options.input_stream = pdfFile
+
+        with open(redactedpath, "wb") as outputFile:
+            options.output_stream = outputFile
+
+            pdf_redactor.redactor(options)
+            outputFile.flush()
+
+    return redactedpath
+
+
 @app.route("/update", methods=['POST'])
 def update():
     """Update entities based on annotation (and annotate document)."""
@@ -71,9 +99,13 @@ def update():
     offsets = redactions["offsets"]
     entities = [tuple(o) for o in offsets]
     train_data = [(text, {"entities": entities})]
-    print(offsets)
 
-    train_model(train_data=train_data, model=model, new_model_name='redacted', output_dir=Path.home() / 'models' / 'latest')
+    redact_pdf(
+        os.path.join(os.path.expanduser("~/Documents/Redactions"),
+                     *urlparse(request.json["url"]).path.split("/")[3:]),
+        redactions["labelSnippits"]
+    )
+    train_model(train_data=train_data, model=model) #, new_model_name='redacted', output_dir=Path.home() / 'models' / 'latest')
     return {
         "status": "ok",
         "result": "redacted"

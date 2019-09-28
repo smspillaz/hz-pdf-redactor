@@ -228,7 +228,7 @@ function App() {
             position: "relative"
           }}
         >
-          <PdfLoader url={url}>
+          <PdfLoader url={url} beforeLoad={<div />}>
             {pdfDocument => (
               <PdfHighlighter
                 pdfDocument={pdfDocument}

@@ -219,7 +219,7 @@ function getIndicesOf(searchStr, str, caseSensitive) {
 
 function findHighlightOffsets(text, highlights) {
   return highlights.map(s =>
-    getIndicesOf(s.content.text, text, true).map(idx => ([idx, idx + s.content.text.length, 'REDACTED']))
+    getIndicesOf(s.content.text, text, true).map(idx => ([idx, idx + s.content.text.length, s.type]))
   ).reduce(
     (all, a) => all.concat(a), []
   );
@@ -301,7 +301,8 @@ function findTextsOnNode(texts) {
           ...scaledPosition
         },
         content,
-        color: selectColors[textsTypes[t]][500]
+        color: selectColors[textsTypes[t]][500],
+        type: textsTypes[t]
       });
     }
   });
@@ -440,7 +441,8 @@ function App() {
           </Typography>
           <Button
             color="inherit"
-            onClick={() =>
+            onClick={() => {
+              const offsets = findHighlightOffsets(pdfText, highlights);
               fetch('http://localhost:5000/update', {
                 method: 'POST',
                 headers: {
@@ -451,10 +453,15 @@ function App() {
                   model: 'en_core_web_sm',
                   redactions: {
                     text: pdfText,
-                    offsets: findHighlightOffsets(pdfText, highlights),
+                    offsets,
+                    labelSnippits: offsets.map(([begin, end, type]) => ({
+                      text: pdfText.slice(begin, end),
+                      type
+                    }))
                   }
                 }),
-              })}
+              });
+            }}
           >
             Annotate
           </Button>
@@ -548,6 +555,7 @@ function App() {
                     position,
                     color: selectColors[highlightType][200],
                     comment: '',
+                    type: highlightType
                   })
                 )}
                 highlightTransform={(

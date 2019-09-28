@@ -1,0 +1,3 @@
+[submodule "backend/pdf_redactor"]
+	path = backend/pdf_redactor
+	url = git://github.com/JoshData/pdf-redactor

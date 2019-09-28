@@ -3,6 +3,10 @@ from __future__ import unicode_literals
 from flask import Flask, request
 # from hug_middleware_cors import CORSMiddleware
 import spacy
+from spacy.gold import GoldParse
+import random
+from tika import parser
+
 app = Flask(__name__)
 
 MODELS = {
@@ -49,6 +53,10 @@ def models():
 
 
 @app.route("/ent", methods=['POST'])
+@app.route("/addClassifier", methods=['POST'])
+@app.route("/parseFile", methods=['POST'])
+
+
 def ent():
     """Get entities for displaCy ENT visualizer."""
     # print(request.json)
@@ -62,6 +70,52 @@ def ent():
         for ent in doc.ents
     ]}
 
+def addClassifier():
+    pass
+
+def parseFile():
+    model = request.json["model"]
+    text = request.json["text"]
+    nlp = MODELS[model]
+    doc = nlp(text)
+    return {"result": [
+        {"start": ent.start_char, "end": ent.end_char, "label": ent.label_,
+         "word": text[ent.start_char:ent.end_char]}
+        for ent in doc.ents
+    ]}
+
+def testMethod():
+    raw = parser.from_file('62MnuXfKvT1.pdf')
+    print(raw['content'])
+    nlp = MODELS["en_core_web_sm"]
+    doc = nlp(raw['content'])
+    return {"result": [
+        {"start": ent.start_char, "end": ent.end_char, "label": ent.label_, "word":raw['content'][ent.start_char:ent.end_char]}
+        for ent in doc.ents
+    ]}
+
+def train_ner(nlp, training_data, iterations, entity_types):
+    """Use the training data to update the model."""
+    for label in entity_types:
+        nlp.entity.add_label(label)
+
+    for text, _ in training_data:
+        for word in nlp.make_doc(text):
+            nlp.vocab[word.orth]  # suppress(pointless-statement)
+
+    for _ in range(0, iterations):
+        random.shuffle(training_data)
+        loss = 0
+
+        for raw_text, offsets in training_data:
+            doc = nlp.make_doc(raw_text)
+            gold = GoldParse(doc, entities=offsets)
+            nlp.tagger(doc)
+            loss += nlp.entity.update(doc, gold)
+
+        yield loss / len(training_data)
+
+    nlp.end_training()
 
 if __name__ == "__main__":
     # import waitress

@@ -60,8 +60,6 @@ def models():
 
 def ent():
     """Get entities for displaCy ENT visualizer."""
-    # print(request.json)
-    # return request.json
     model = request.json["model"]
     text = request.json["text"]
     nlp = MODELS[model]
@@ -119,9 +117,4 @@ def train_ner(nlp, training_data, iterations, entity_types):
     nlp.end_training()
 
 if __name__ == "__main__":
-    # import waitress
-    #
-    # app = hug.API(__name__)
-    # app.http.add_middleware(CORSMiddleware(app))
-    # waitress.serve(__hug_wsgi__, port=8080)
     app.run(debug=True, host='0.0.0.0')

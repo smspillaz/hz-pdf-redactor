@@ -6,20 +6,23 @@ import spacy
 from spacy.gold import GoldParse
 import random
 from tika import parser
+from pathlib import Path
+from spacy.util import minibatch, compounding
 
 app = Flask(__name__)
 CORS(app)
 
 MODELS = {
-    "en_core_web_sm": spacy.load("en_core_web_sm"),
+    # "en_core_web_sm": spacy.load("en_core_web_sm"),
     # "en_core_web_md": spacy.load("en_core_web_md"),
-    # "en_core_web_lg": spacy.load("en_core_web_lg"),
+    "en_core_web_lg": spacy.load("en_core_web_lg"),
     # "de_core_news_sm": spacy.load("de_core_news_sm"),
     # "es_core_news_sm": spacy.load("es_core_news_sm"),
     # "pt_core_news_sm": spacy.load("pt_core_news_sm"),
     # "fr_core_news_sm": spacy.load("fr_core_news_sm"),
     # "it_core_news_sm": spacy.load("it_core_news_sm"),
     # "nl_core_news_sm": spacy.load("nl_core_news_sm"),
+    "latest": spacy.load(Path.home() / 'models' / 'latest')
 }
 
 
@@ -76,28 +79,17 @@ def update():
     model = request.json["model"]
     redactions = request.json["redactions"]
     text = redactions["text"]
-    highlights = redactions["highlights"]
-    print(highlights)
+    offsets = redactions["offsets"]
+    entities = [tuple(o) for o in offsets]
+    train_data = [(text, {"entities": entities})]
+    print(offsets)
+
+    train_model(train_data=train_data, model=model, new_model_name='redacted', output_dir=Path.home() / 'models' / 'latest')
     return {
         "status": "ok",
-        "result": {}
+        "result": "redacted"
     }
 
-@app.route("/addClassifier", methods=['POST'])
-def addClassifier():
-    pass
-
-@app.route("/parseFile", methods=['POST'])
-def parseFile():
-    model = request.json["model"]
-    text = request.json["text"]
-    nlp = MODELS[model]
-    doc = nlp(text)
-    return {"result": [
-        {"start": ent.start_char, "end": ent.end_char, "label": ent.label_,
-         "word": text[ent.start_char:ent.end_char]}
-        for ent in doc.ents
-    ]}
 
 def testMethod():
     raw = parser.from_file('62MnuXfKvT1.pdf')
@@ -109,28 +101,72 @@ def testMethod():
         for ent in doc.ents
     ]}
 
-def train_ner(nlp, training_data, iterations, entity_types):
-    """Use the training data to update the model."""
-    for label in entity_types:
-        nlp.entity.add_label(label)
+# def train_ner(nlp, training_data, iterations, entity_types):
+#     """Use the training data to update the model."""
+#     for label in entity_types:
+#         nlp.entity.add_label(label)
 
-    for text, _ in training_data:
-        for word in nlp.make_doc(text):
-            nlp.vocab[word.orth]  # suppress(pointless-statement)
+#     for text, _ in training_data:
+#         for word in nlp.make_doc(text):
+#             nlp.vocab[word.orth]  # suppress(pointless-statement)
 
-    for _ in range(0, iterations):
-        random.shuffle(training_data)
-        loss = 0
+#     for _ in range(0, iterations):
+#         random.shuffle(training_data)
+#         loss = 0
 
-        for raw_text, offsets in training_data:
-            doc = nlp.make_doc(raw_text)
-            gold = GoldParse(doc, entities=offsets)
-            nlp.tagger(doc)
-            loss += nlp.entity.update(doc, gold)
+#         for raw_text, offsets in training_data:
+#             doc = nlp.make_doc(raw_text)
+#             gold = GoldParse(doc, entities=offsets)
+#             nlp.tagger(doc)
+#             loss += nlp.entity.update(doc, gold)
 
-        yield loss / len(training_data)
+#         yield loss / len(training_data)
 
-    nlp.end_training()
+#     nlp.end_training()
+
+def train_model(train_data, labels = ["redacted"], model=None, new_model_name='new_model', output_dir=None, n_iter=1):
+    """Setting up the pipeline and entity recognizer, and training the new entity."""
+    if model is not None:
+        nlp = spacy.load(model)  # load existing spacy model
+        print("Loaded model '%s'" % model)
+    else:
+        nlp = spacy.blank('en')  # create blank Language class
+        print("Created blank 'en' model")
+    if 'ner' not in nlp.pipe_names:
+        ner = nlp.create_pipe('ner')
+        nlp.add_pipe(ner)
+    else:
+        ner = nlp.get_pipe('ner')
+
+    for i in labels:
+        ner.add_label(i)   # Add new entity labels to entity recognizer
+
+    if model is None:
+        optimizer = nlp.begin_training()
+    else:
+        optimizer = nlp.entity.create_optimizer()
+
+    # Get names of other pipes to disable them during training to train only NER
+    other_pipes = [pipe for pipe in nlp.pipe_names if pipe != 'ner']
+    with nlp.disable_pipes(*other_pipes):  # only train NER
+        for itn in range(n_iter):
+            random.shuffle(train_data)
+            losses = {}
+            batches = minibatch(train_data, size=compounding(4., 32., 1.001))
+            for batch in batches:
+                texts, annotations = zip(*batch)
+                nlp.update(texts, annotations, sgd=optimizer, drop=0.35,
+                           losses=losses)
+            print('Losses', losses)
+
+    # Save model 
+    if output_dir is not None:
+        if not output_dir.exists():
+            output_dir.mkdir()
+        nlp.meta['name'] = new_model_name  # rename model
+        nlp.to_disk(output_dir)
+        print("Saved model to", output_dir)
+
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')

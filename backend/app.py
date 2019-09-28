@@ -8,21 +8,24 @@ import random
 from tika import parser
 from pathlib import Path
 from spacy.util import minibatch, compounding
+from pdf_redactor.pdf_redactor import redactor, RedactorOptions
 
 app = Flask(__name__)
 CORS(app)
 
 MODELS = {
-    # "en_core_web_sm": spacy.load("en_core_web_sm"),
+    "en_core_web_sm": spacy.load("en_core_web_sm"),
     # "en_core_web_md": spacy.load("en_core_web_md"),
-    "en_core_web_lg": spacy.load("en_core_web_lg"),
+    # "en_core_web_lg": spacy.load("en_core_web_lg"),
     # "de_core_news_sm": spacy.load("de_core_news_sm"),
     # "es_core_news_sm": spacy.load("es_core_news_sm"),
     # "pt_core_news_sm": spacy.load("pt_core_news_sm"),
     # "fr_core_news_sm": spacy.load("fr_core_news_sm"),
     # "it_core_news_sm": spacy.load("it_core_news_sm"),
     # "nl_core_news_sm": spacy.load("nl_core_news_sm"),
-    "latest": spacy.load((Path.home() / 'models' / 'latest').mkdir(parents=True, exist_ok=True))
+    # "latest": spacy.blank("en").from_disk(Path.home() / 'models' / 'latest')
+    # "latest": spacy.blank("en").from_disk((Path.home() / 'models' / 'latest').mkdir(parents=True, exist_ok=True))
+    # spacy.blank("en").from_disk("/path/to/data")
 }
 
 def get_model_desc(nlp, model_name):
@@ -84,7 +87,7 @@ def testMethod():
         for ent in doc.ents
     ]}
 
-def train_model(train_data, labels = ["redacted"], model=None, new_model_name='new_model', output_dir=None, n_iter=1):
+def train_model(train_data, labels = ["REDACTED"], model=None, new_model_name='new_model', output_dir=None, n_iter=1):
     """Setting up the pipeline and entity recognizer, and training the new entity."""
     if model is not None:
         nlp = spacy.load(model)  # load existing spacy model

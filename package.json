@@ -6,13 +6,17 @@
     "@tensorflow/tfjs": "^1.2.9",
     "react": "^16.10.0",
     "react-dom": "^16.10.0",
-    "react-scripts": "3.1.2"
+    "react-scripts": "3.1.2",
+    "typescript": "^3.6.3"
   },
+  "main": "src/electron-starter.js",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "electron": "electron .",
+    "electron-dev": "ELECTRON_START_URL=http://localhost:3000 electron ."
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -28,5 +32,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "electron": "^6.0.10"
   }
 }

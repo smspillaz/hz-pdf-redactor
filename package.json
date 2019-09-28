@@ -8,8 +8,10 @@
     "@tensorflow/tfjs": "^1.2.9",
     "react": "^16.10.0",
     "react-dom": "^16.10.0",
+    "react-pdf-highlighter": "^2.2.0",
     "react-scripts": "3.1.2",
-    "typescript": "^3.6.3"
+    "typescript": "^3.6.3",
+    "url-search-params": "^1.1.0"
   },
   "main": "src/electron-starter.js",
   "scripts": {

@@ -151,8 +151,6 @@ const selectColorsStyles = makeStyles(theme => Object.keys(selectColors).reduce(
   }
 }), {}));
 
-const DEFAULT_URL = "https://arxiv.org/pdf/1708.08021.pdf";
-
 function RenderOnPdfAvailable({ children, pdfDocument, beforeLoad }) {
   return pdfDocument ? children(pdfDocument) : beforeLoad;
 }
@@ -333,8 +331,7 @@ function App() {
   const [documentTree, setDocumentTree] = React.useState({});
   const [pdfText, setPdfText] = React.useState('');
   const [pdfDocument, setPdfDocument] = React.useState(null);
-  const [url, setUrl] = React.useState(DEFAULT_URL);
-  const [suggesting, setSuggesting] = React.useState(false);
+  const [url, setUrl] = React.useState('');
   const [highlightType, setHighlightType] = React.useState('PERSON');
 
   const handleDrawerOpen = () => {

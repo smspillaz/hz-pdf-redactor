@@ -5,7 +5,6 @@ import AppBar from '@material-ui/core/AppBar';
 import Button from '@material-ui/core/Button';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Drawer from '@material-ui/core/Drawer';
-import List from '@material-ui/core/List';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
 import { makeStyles, useTheme } from '@material-ui/core/styles';
@@ -13,11 +12,9 @@ import MenuIcon from '@material-ui/icons/Menu';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 import Divider from '@material-ui/core/Divider';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
-import ListItemText from '@material-ui/core/ListItemText';
-import InboxIcon from '@material-ui/icons/MoveToInbox';
-import MailIcon from '@material-ui/icons/Mail';
+import TreeView from '@material-ui/lab/TreeView';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import TreeItem from '@material-ui/lab/TreeItem';
 
 import {
   PdfHighlighter,
@@ -96,6 +93,11 @@ const useStyles = makeStyles(theme => ({
   fullList: {
     width: 'auto',
   },
+  treeView: {
+    height: 216,
+    flexGrow: 1,
+    maxWidth: 400,
+  },
 }));
 
 const DEFAULT_URL = "https://arxiv.org/pdf/1708.08021.pdf";
@@ -110,12 +112,39 @@ function PdfLoader({ url, children, beforeLoad }) {
   return pdfDocument ? children(pdfDocument) : beforeLoad;
 }
 
+function RecursiveTreeItem({ nodeId, label, tree }) {
+  return (
+    <TreeItem nodeId={nodeId} label={label}>
+      {Object.keys(tree).map((key, i) => (
+        typeof(tree[key]) === 'object' ? (
+          <RecursiveTreeItem nodeId={`${i}`} label={key} tree={tree[key]} key={key} />
+        ) : <TreeItem nodeId={`${i}`} label={key} key={key} />
+      ))}
+    </TreeItem>
+  )
+}
+
+function FileSystemNavigator({ tree }) {
+  const classes = useStyles();
+
+  return (
+    <TreeView
+      className={classes.treeView}
+      defaultCollapseIcon={<ExpandMoreIcon />}
+      defaultExpandIcon={<ChevronRightIcon />}
+    >
+      <RecursiveTreeItem nodeId={"1"} tree={tree} label="/"/>
+    </TreeView>
+  );
+}
+
 function App() {
   const classes = useStyles();
   const theme = useTheme();
 
   const [open, setOpen] = React.useState(false);
   const [highlights, setHighlights] = React.useState([]);
+  const [documentTree, setDocumentTree] = React.useState({});
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -136,25 +165,17 @@ function App() {
         </IconButton>
       </div>
       <Divider />
-      <List>
-        {['Inbox', 'Starred', 'Send email', 'Drafts'].map((text, index) => (
-          <ListItem button key={text}>
-            <ListItemIcon>{index % 2 === 0 ? <InboxIcon /> : <MailIcon />}</ListItemIcon>
-            <ListItemText primary={text} />
-          </ListItem>
-        ))}
-      </List>
-      <Divider />
-      <List>
-        {['All mail', 'Trash', 'Spam'].map((text, index) => (
-          <ListItem button key={text}>
-            <ListItemIcon>{index % 2 === 0 ? <InboxIcon /> : <MailIcon />}</ListItemIcon>
-            <ListItemText primary={text} />
-          </ListItem>
-        ))}
-      </List>
+      <FileSystemNavigator tree={documentTree} />
     </div>
   );
+
+  useEffect(() => {
+    fetch('/api/list_documents')
+      .then(res => res.json())
+      .then((response) => {
+        setDocumentTree(response.data);
+      });
+  });
 
   const resetHighlights = () => {
     setHighlights([]);

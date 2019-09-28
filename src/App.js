@@ -20,6 +20,7 @@ import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import TreeItem from '@material-ui/lab/TreeItem';
 
 import amber from '@material-ui/core/colors/amber';
+import orange from '@material-ui/core/colors/orange';
 import red from '@material-ui/core/colors/red';
 import pink from '@material-ui/core/colors/pink';
 import deepPurple from '@material-ui/core/colors/deepPurple';
@@ -134,6 +135,7 @@ const useStyles = makeStyles(theme => ({
 
 const selectColors = {
   'PERSON': amber,
+  'ADDRESS': orange,
   'ORG': red,
   'GPE': pink,
   'DATE': deepPurple,
@@ -312,6 +314,7 @@ function findTextsOnNode(texts) {
 
 const REDACTED_LABELS = [
   'PERSON',
+  'ADDRESS',
   'ORG',
   'GPE',
   'DATE',

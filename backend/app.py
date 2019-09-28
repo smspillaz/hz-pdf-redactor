@@ -1,13 +1,14 @@
 from __future__ import unicode_literals
 
 from flask import Flask, request
-# from hug_middleware_cors import CORSMiddleware
+from flask_cors import CORS
 import spacy
 from spacy.gold import GoldParse
 import random
 from tika import parser
 
 app = Flask(__name__)
+CORS(app)
 
 MODELS = {
     "en_core_web_sm": spacy.load("en_core_web_sm"),

@@ -273,7 +273,7 @@ function findTextsOnNode(texts) {
 
       let idx = child.textContent.indexOf(rectified);
       range.setStart(child, idx);
-      range.setEnd(child, idx + rectified.length - 1);
+      range.setEnd(child, idx + rectified.length);
 
       const page = getPageFromRange(range);
 

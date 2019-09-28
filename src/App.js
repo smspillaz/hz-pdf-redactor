@@ -149,6 +149,31 @@ export const getPDFText = async (pdfDocument) => {
   return pageTexts.join(" ");
 };
 
+function getIndicesOf(searchStr, str, caseSensitive) {
+  var searchStrLen = searchStr.length;
+  if (searchStrLen == 0) {
+      return [];
+  }
+  var startIndex = 0, index, indices = [];
+  if (!caseSensitive) {
+      str = str.toLowerCase();
+      searchStr = searchStr.toLowerCase();
+  }
+  while ((index = str.indexOf(searchStr, startIndex)) > -1) {
+      indices.push(index);
+      startIndex = index + searchStrLen;
+  }
+  return indices;
+}
+
+function findHighlightOffsets(text, highlights) {
+  return highlights.map(s =>
+    getIndicesOf(s.content.text, text, true).map(idx => ([idx, idx + s.content.text.length, 'REDACTED']))
+  ).reduce(
+    (all, a) => all.concat(a), []
+  );
+}
+
 function App() {
   const classes = useStyles();
   const theme = useTheme();
@@ -245,7 +270,26 @@ function App() {
           >
             <MenuIcon />
           </IconButton>
-          <Button color="inherit">Annotate</Button>
+          <Button
+            color="inherit"
+            onClick={() =>
+              fetch('http://localhost:5000/update', {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  model: 'en_core_web_sm',
+                  redactions: {
+                    text: pdfText,
+                    offsets: findHighlightOffsets(pdfText, highlights),
+                  }
+                }),
+              })}
+          >
+            Annotate
+          </Button>
           <Button
             color="inherit"
             disabled={!pdfText}

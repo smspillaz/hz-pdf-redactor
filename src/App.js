@@ -23,6 +23,16 @@ import {
   AreaHighlight
 } from 'react-pdf-highlighter';
 
+import {
+  getPageFromRange,
+  getPageFromElement,
+  findOrCreateContainerLayer
+} from "react-pdf-highlighter/lib/lib/pdfjs-dom";
+
+import getBoundingRect from "react-pdf-highlighter/lib/lib/get-bounding-rect";
+import getClientRects from "react-pdf-highlighter/lib/lib/get-client-rects";
+import { viewportToScaled } from "react-pdf-highlighter/lib/lib/coordinates";
+
 import pdfjsLib from 'pdfjs-dist/webpack';
 
 const drawerWidth = 240;
@@ -132,6 +142,8 @@ function FileSystemNavigator({ tree, callback }) {
   );
 };
 
+
+
 const getPageText = async (pdf, pageNo) => {
   const page = await pdf.getPage(pageNo);
   const tokenizedText = await page.getTextContent();
@@ -174,6 +186,93 @@ function findHighlightOffsets(text, highlights) {
   );
 }
 
+function viewportPositionToScaled({
+  pageNumber,
+  boundingRect,
+  rects
+}) {
+  const viewport = window.PdfViewer.viewer.getPageView(pageNumber - 1).viewport;
+
+  return {
+    boundingRect: viewportToScaled(boundingRect, viewport),
+    rects: (rects || []).map(rect => viewportToScaled(rect, viewport)),
+    pageNumber
+  };
+}
+
+// Giant hack of the century
+//
+// Basically we go through all our text and generate synthetic highlight
+// events every time we have a match
+function findTextsOnNode(texts) {
+  // First deduplicate all the texts
+  let textsSet = Array.from([...new Set(texts)]);
+  let highlights = [];
+
+  // We basically have to do this on promises so that we give enough
+  // time to return to the main loop and for the DOM to update ...
+  textsSet.forEach((t) => {
+    let rectified = t.replace("'", "");
+    const query = document.evaluate(`//div[text()[contains(.,'${rectified}')]]`, document);
+    let nodes = [];
+    let next = query.iterateNext();
+
+    while (next) {
+      nodes.push(next);
+      next = query.iterateNext();
+    }
+
+    // Hopefully this doesn't take too long ...
+    for (let node of nodes) {
+      let child = node.firstChild;
+
+      let range = document.createRange();
+
+      let idx = child.textContent.indexOf(rectified);
+      range.setStart(child, idx);
+      range.setEnd(child, idx + rectified.length - 1);
+
+      const page = getPageFromRange(range);
+
+      if (!page) {
+        return;
+      }
+
+      const rects = getClientRects(range, page.node);
+
+      if (rects.length === 0) {
+        return;
+      }
+
+      const boundingRect = getBoundingRect(rects);
+
+      const viewportPosition = { boundingRect, rects, pageNumber: page.number };
+
+      const content = {
+        text: range.toString()
+      };
+      const scaledPosition = viewportPositionToScaled(viewportPosition);
+
+      highlights.push({
+        position: scaledPosition,
+        content,
+      });
+    }
+  });
+
+  return highlights;
+}
+
+const REDACTED_LABELS = [
+  'PERSON',
+  'ORG',
+  'GPE',
+  'DATE',
+  'TIME',
+  'PERCENT',
+  'MONEY'
+];
+
 function App() {
   const classes = useStyles();
   const theme = useTheme();
@@ -184,6 +283,7 @@ function App() {
   const [pdfText, setPdfText] = React.useState('');
   const [pdfDocument, setPdfDocument] = React.useState(null);
   const [url, setUrl] = React.useState(DEFAULT_URL);
+  const [suggesting, setSuggesting] = React.useState(false);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -321,7 +421,8 @@ function App() {
           <Button
             color="inherit"
             disabled={!pdfText}
-            onClick={() =>
+            onClick={() => {
+              setSuggesting(true);
               fetch('http://localhost:5000/ent', {
                 method: 'POST',
                 headers: {
@@ -332,8 +433,25 @@ function App() {
                   model: 'en_core_web_sm',
                   text: pdfText
                 })
-              }).then(r => r.json()).then(r => console.log(r))
-            }>Suggest</Button>
+              }).then(
+                r => r.json()
+              ).then(
+                r => findTextsOnNode(r.result.filter(
+                  s => REDACTED_LABELS.indexOf(s.label) !== -1
+                 ).map(x => x.word))
+              ).then(
+                (foundHighlights) => {
+                  setHighlights(highlights.concat(foundHighlights.map(h => ({
+                    ...h,
+                    id: getNextId()
+                  }))));
+                  setSuggesting(false);
+                }
+              );
+            }}
+          >
+            Suggest
+          </Button>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -375,7 +493,7 @@ function App() {
                   hideTipAndSelection,
                   transformSelection
                 ) => (
-                  addHighlight({ content, position, comment: '' })
+                  suggesting ? addHighlight({ content, position, comment: '' }) : null
                 )}
                 highlightTransform={(
                   highlight,

@@ -394,6 +394,7 @@ function App() {
     console.log("Saving highlight", highlight);
 
     var overlapFound = 0;
+    /*
     for (const h of highlights.values()) {
       if (highlightsOverlap(highlight, h)) {
             //alert('Remove: ' + h);
@@ -401,7 +402,8 @@ function App() {
             break;
           }  
     }
-    if (overlapFound === 1) {
+    */
+    if (overlapFound == 1) {
       setHighlights(highlights.filter(
         function(hl) {
           return !highlightsOverlap(hl, highlight)
@@ -583,6 +585,9 @@ function App() {
                           backgroundColor: highlight.color,
                         }))
                       }}
+                      position={highlight.position}
+                      comment={highlight.comment}
+                      //onClick={alert('var')}
                     />
                   ) : (
                     <AreaHighlight

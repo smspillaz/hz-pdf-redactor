@@ -5,16 +5,27 @@ import AppBar from '@material-ui/core/AppBar';
 import Button from '@material-ui/core/Button';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Drawer from '@material-ui/core/Drawer';
+import MenuItem from '@material-ui/core/MenuItem';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
+import Typography from '@material-ui/core/Typography';
 import { makeStyles, useTheme } from '@material-ui/core/styles';
 import MenuIcon from '@material-ui/icons/Menu';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
+import Select from '@material-ui/core/Select';
 import Divider from '@material-ui/core/Divider';
 import TreeView from '@material-ui/lab/TreeView';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import TreeItem from '@material-ui/lab/TreeItem';
+
+import amber from '@material-ui/core/colors/amber';
+import red from '@material-ui/core/colors/red';
+import pink from '@material-ui/core/colors/pink';
+import deepPurple from '@material-ui/core/colors/deepPurple';
+import blue from '@material-ui/core/colors/blue';
+import teal from '@material-ui/core/colors/teal';
+import lime from '@material-ui/core/colors/lime';
 
 import {
   PdfHighlighter,
@@ -42,7 +53,6 @@ const getNextId = () => String(Math.random()).slice(2);
 const useStyles = makeStyles(theme => ({
   root: {
     display: 'flex',
-    flexGrow: 1,
   },
   appBar: {
     transition: theme.transitions.create(['margin', 'width'], {
@@ -91,6 +101,9 @@ const useStyles = makeStyles(theme => ({
     }),
     marginLeft: 0,
   },
+  grow: {
+    flexGrow: 1
+  },
   menuButton: {
     marginRight: theme.spacing(2),
   },
@@ -108,7 +121,33 @@ const useStyles = makeStyles(theme => ({
     flexGrow: 1,
     maxWidth: 400,
   },
+  selectRoot: {
+    color: 'white',
+    lineHeight: '0px',
+    fontSize: '15px',
+    '& div': {
+      paddingTop: '18px',
+      paddingBottom: '18px'
+    }
+  },
 }));
+
+const selectColors = {
+  'PERSON': amber,
+  'ORG': red,
+  'GPE': pink,
+  'DATE': deepPurple,
+  'TIME': blue,
+  'PERCENT': lime,
+  'MONEY': teal
+};
+
+const selectColorsStyles = makeStyles(theme => Object.keys(selectColors).reduce((acc, k) => ({
+  ...acc,
+  [k]: {
+    backgroundColor: selectColors[k][500]
+  }
+}), {}));
 
 const DEFAULT_URL = "https://arxiv.org/pdf/1708.08021.pdf";
 
@@ -206,7 +245,11 @@ function viewportPositionToScaled({
 // events every time we have a match
 function findTextsOnNode(texts) {
   // First deduplicate all the texts
-  let textsSet = Array.from([...new Set(texts)]);
+  let textsTypes = texts.reduce((all, t) => ({
+    ...all,
+    [t.word]: t.label
+  }));
+  let textsSet = Array.from([...new Set(texts.map(r => r.word))]);
   let highlights = [];
 
   // We basically have to do this on promises so that we give enough
@@ -254,8 +297,11 @@ function findTextsOnNode(texts) {
       const scaledPosition = viewportPositionToScaled(viewportPosition);
 
       highlights.push({
-        position: scaledPosition,
+        position: {
+          ...scaledPosition
+        },
         content,
+        color: selectColors[textsTypes[t]][500]
       });
     }
   });
@@ -273,8 +319,13 @@ const REDACTED_LABELS = [
   'MONEY'
 ];
 
+const HighlightColor = styled.div`
+  color: ${({ color }) => color}
+`;
+
 function App() {
   const classes = useStyles();
+  const selectColorsClasses = selectColorsStyles();
   const theme = useTheme();
 
   const [open, setOpen] = React.useState(false);
@@ -284,6 +335,7 @@ function App() {
   const [pdfDocument, setPdfDocument] = React.useState(null);
   const [url, setUrl] = React.useState(DEFAULT_URL);
   const [suggesting, setSuggesting] = React.useState(false);
+  const [highlightType, setHighlightType] = React.useState('PERSON');
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -353,7 +405,7 @@ function App() {
             break;
           }  
     }
-    if (overlapFound == 1) {
+    if (overlapFound === 1) {
       setHighlights(highlights.filter(
         function(hl) {
           return !highlightsOverlap(hl, highlight)
@@ -397,6 +449,9 @@ function App() {
           >
             <MenuIcon />
           </IconButton>
+          <Typography variant="h6" color="inherit" className={classes.grow}>
+            {url}
+          </Typography>
           <Button
             color="inherit"
             onClick={() =>
@@ -437,7 +492,7 @@ function App() {
               ).then(
                 r => findTextsOnNode(r.result.filter(
                   s => REDACTED_LABELS.indexOf(s.label) !== -1
-                 ).map(x => x.word))
+                 ))
               ).then(
                 (foundHighlights) => {
                   setHighlights(highlights.concat(foundHighlights.map(h => ({
@@ -451,6 +506,16 @@ function App() {
           >
             Suggest
           </Button>
+          <Select
+            value={highlightType}
+            onChange={event => setHighlightType(event.target.value)}
+            variant="filled"
+            className={clsx(classes.selectRoot, selectColorsClasses[highlightType])}
+          >
+            {REDACTED_LABELS.map(l => (
+              <MenuItem value={l}>{l}</MenuItem>
+            ))}
+          </Select>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -492,7 +557,12 @@ function App() {
                   hideTipAndSelection,
                   transformSelection
                 ) => (
-                  suggesting ? addHighlight({ content, position, comment: '' }) : null
+                  addHighlight({
+                    content,
+                    position,
+                    color: selectColors[highlightType][200],
+                    comment: '',
+                  })
                 )}
                 highlightTransform={(
                   highlight,
@@ -510,8 +580,13 @@ function App() {
                   const component = isTextHighlight ? (
                     <Highlight
                       isScrolledTo={isScrolledTo}
-                      position={highlight.position}
-                      comment={highlight.comment}
+                      position={{
+                        ...highlight.position,
+                        rects: highlight.position.rects.map(r => ({
+                          ...r,
+                          backgroundColor: highlight.color,
+                        }))
+                      }}
                     />
                   ) : (
                     <AreaHighlight

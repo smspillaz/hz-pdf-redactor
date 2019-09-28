@@ -70,6 +70,19 @@ def ent():
         for ent in doc.ents
     ]}
 
+@app.route("/update", methods=['POST'])
+def update():
+    """Update entities based on annotation (and annotate document)."""
+    model = request.json["model"]
+    redactions = request.json["redactions"]
+    text = redactions["text"]
+    highlights = redactions["highlights"]
+    print(highlights)
+    return {
+        "status": "ok",
+        "result": {}
+    }
+
 @app.route("/addClassifier", methods=['POST'])
 def addClassifier():
     pass

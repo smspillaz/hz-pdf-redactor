@@ -102,13 +102,7 @@ const useStyles = makeStyles(theme => ({
 
 const DEFAULT_URL = "https://arxiv.org/pdf/1708.08021.pdf";
 
-function PdfLoader({ url, children, beforeLoad }) {
-  const [pdfDocument, setPdfDocument] = useState(null);
-
-  useEffect(() => {
-    pdfjsLib.getDocument(url).then(document => setPdfDocument(document))
-  }, [url]);
-
+function RenderOnPdfAvailable({ children, pdfDocument, beforeLoad }) {
   return pdfDocument ? children(pdfDocument) : beforeLoad;
 }
 
@@ -136,7 +130,24 @@ function FileSystemNavigator({ tree }) {
       <RecursiveTreeItem nodeId={"1"} tree={tree} label="/"/>
     </TreeView>
   );
-}
+};
+
+const getPageText = async (pdf, pageNo) => {
+  const page = await pdf.getPage(pageNo);
+  const tokenizedText = await page.getTextContent();
+  const pageText = tokenizedText.items.map(token => token.str).join("");
+  return pageText;
+};
+
+export const getPDFText = async (pdfDocument) => {
+  const maxPages = pdfDocument.numPages;
+  const pageTextPromises = [];
+  for (let pageNo = 1; pageNo <= maxPages; pageNo += 1) {
+    pageTextPromises.push(getPageText(pdfDocument, pageNo));
+  }
+  const pageTexts = await Promise.all(pageTextPromises);
+  return pageTexts.join(" ");
+};
 
 function App() {
   const classes = useStyles();
@@ -145,6 +156,9 @@ function App() {
   const [open, setOpen] = React.useState(false);
   const [highlights, setHighlights] = React.useState([]);
   const [documentTree, setDocumentTree] = React.useState({});
+  const [pdfText, setPdfText] = React.useState('');
+  const [pdfDocument, setPdfDocument] = React.useState(null);
+  const [url, setUrl] = React.useState(DEFAULT_URL);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -168,6 +182,14 @@ function App() {
       <FileSystemNavigator tree={documentTree} />
     </div>
   );
+
+  useEffect(() => {
+    pdfjsLib.getDocument(url)
+      .then(document => {
+        setPdfDocument(document);
+        return getPDFText(document);
+      }).then(text => setPdfText(text));
+  }, [url]);
 
   useEffect(() => {
     fetch('/api/list_documents')
@@ -205,8 +227,6 @@ function App() {
     }));
   };
 
-  const url = DEFAULT_URL;
-
   return (
     <div className={classes.root}>
       <CssBaseline />
@@ -226,7 +246,22 @@ function App() {
             <MenuIcon />
           </IconButton>
           <Button color="inherit">Annotate</Button>
-          <Button color="inherit">Suggest</Button>
+          <Button
+            color="inherit"
+            disabled={!pdfText}
+            onClick={() =>
+              fetch('http://localhost:5000/ent', {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  model: 'en_core_web_sm',
+                  text: pdfText
+                })
+              }).then(r => r.json()).then(r => console.log(r))
+            }>Suggest</Button>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -254,7 +289,7 @@ function App() {
             position: "relative"
           }}
         >
-          <PdfLoader url={url} beforeLoad={<div />}>
+          <RenderOnPdfAvailable pdfDocument={pdfDocument} beforeLoad={<div />}>
             {pdfDocument => (
               <PdfHighlighter
                 pdfDocument={pdfDocument}
@@ -314,7 +349,7 @@ function App() {
                 highlights={highlights}
               />
             )}
-          </PdfLoader>
+          </RenderOnPdfAvailable>
         </div>
       </div>
     </div>

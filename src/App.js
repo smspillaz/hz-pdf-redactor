@@ -319,10 +319,6 @@ const REDACTED_LABELS = [
   'MONEY'
 ];
 
-const HighlightColor = styled.div`
-  color: ${({ color }) => color}
-`;
-
 function App() {
   const classes = useStyles();
   const selectColorsClasses = selectColorsStyles();

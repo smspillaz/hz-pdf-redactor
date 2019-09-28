@@ -61,7 +61,12 @@ def ent():
     nlp = MODELS[model]
     doc = nlp(text)
     return {"result":[
-        {"start": ent.start_char, "end": ent.end_char, "label": ent.label_}
+        {
+            "start": ent.start_char,
+            "end": ent.end_char,
+            "label": ent.label_,
+            "word": text[ent.start_char:ent.end_char]
+        }
         for ent in doc.ents
     ]}
 

@@ -384,35 +384,9 @@ function App() {
     return highlights.find(highlight => highlight.id === id);
   }
 
-  const highlightsOverlap = (h1, h2) => {
-    return h1.position.boundingRect.x1 <= h2.position.boundingRect.x2 && 
-    h1.position.boundingRect.x2 >= h2.position.boundingRect.x1 &&
-    Math.abs(h1.position.boundingRect.y1 - h2.position.boundingRect.y1) <= 5;
-  }
-
   const addHighlight = (highlight) => {
     console.log("Saving highlight", highlight);
-
-    var overlapFound = 0;
-    /*
-    for (const h of highlights.values()) {
-      if (highlightsOverlap(highlight, h)) {
-            //alert('Remove: ' + h);
-            overlapFound = 1;
-            break;
-          }  
-    }
-    */
-    if (overlapFound == 1) {
-      setHighlights(highlights.filter(
-        function(hl) {
-          return !highlightsOverlap(hl, highlight)
-          }
-        ));
-    }
-    else {
-      setHighlights([{ ...highlight, id: getNextId() }, ...highlights]);
-    }
+    setHighlights([{ ...highlight, id: getNextId() }, ...highlights]);
   }
 
   const updateHighlight = (highlightId, position, content) => {
@@ -428,6 +402,20 @@ function App() {
         : h;
     }));
   };
+
+  const highlightsOverlap = (h1, h2) => {
+    var h2x2 = h2.position.boundingRect.left+h2.position.boundingRect.width;
+    var h2x1 = h2.position.boundingRect.left;
+    var h2y1 = h2.position.boundingRect.top; 
+    if (h1.position.boundingRect.x1 <= h2x2 && 
+    h1.position.boundingRect.x2 >= h2x1 &&
+    Math.abs(h1.position.boundingRect.y1 - h2y1) <= 5) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
 
   return (
     <div className={classes.root}>
@@ -587,7 +575,13 @@ function App() {
                       }}
                       position={highlight.position}
                       comment={highlight.comment}
-                      //onClick={alert('var')}
+                      onClick={ () => {                        
+                        setHighlights(highlights.filter(
+                          function(hl) {
+                            return !highlightsOverlap(hl, highlight)
+                            }
+                          ))
+                      }}
                     />
                   ) : (
                     <AreaHighlight

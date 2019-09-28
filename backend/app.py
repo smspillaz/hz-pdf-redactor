@@ -22,7 +22,8 @@ MODELS = {
     # "fr_core_news_sm": spacy.load("fr_core_news_sm"),
     # "it_core_news_sm": spacy.load("it_core_news_sm"),
     # "nl_core_news_sm": spacy.load("nl_core_news_sm"),
-    "latest": spacy.load((Path.home() / 'models' / 'latest').mkdir(parents=True, exist_ok=True))
+    # "latest": spacy.load((Path.home() / 'models' / 'latest').mkdir(parents=True, exist_ok=True))
+    "latest": spacy.blank("en").from_disk(Path.home() / 'models' / 'latest')
 }
 
 def get_model_desc(nlp, model_name):

@@ -107,7 +107,7 @@ function PdfLoader({ url, children, beforeLoad }) {
 
   useEffect(() => {
     pdfjsLib.getDocument(url).then(document => setPdfDocument(document))
-  });
+  }, [url]);
 
   return pdfDocument ? children(pdfDocument) : beforeLoad;
 }
@@ -175,7 +175,7 @@ function App() {
       .then((response) => {
         setDocumentTree(response.data);
       });
-  });
+  }, []);
 
   const resetHighlights = () => {
     setHighlights([]);

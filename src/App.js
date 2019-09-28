@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import './App.css';
 import AppBar from '@material-ui/core/AppBar';
@@ -18,20 +18,15 @@ import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import InboxIcon from '@material-ui/icons/MoveToInbox';
 import MailIcon from '@material-ui/icons/Mail';
-import Typography from '@material-ui/core/Typography';
-
-import URLSearchParams from "url-search-params";
 
 import {
-  PdfLoader,
   PdfHighlighter,
-  Tip,
   Highlight,
   Popup,
   AreaHighlight
 } from 'react-pdf-highlighter';
 
-
+import pdfjsLib from 'pdfjs-dist/webpack';
 
 const drawerWidth = 240;
 
@@ -104,6 +99,16 @@ const useStyles = makeStyles(theme => ({
 }));
 
 const DEFAULT_URL = "https://arxiv.org/pdf/1708.08021.pdf";
+
+function PdfLoader({ url, children, beforeLoad }) {
+  const [pdfDocument, setPdfDocument] = useState(null);
+
+  useEffect(() => {
+    pdfjsLib.getDocument(url).then(document => setPdfDocument(document))
+  });
+
+  return pdfDocument ? children(pdfDocument) : beforeLoad;
+}
 
 function App() {
   const classes = useStyles();

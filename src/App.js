@@ -237,10 +237,33 @@ function App() {
     return highlights.find(highlight => highlight.id === id);
   }
 
+  const highlightsOverlap = (h1, h2) => {
+    return h1.position.boundingRect.x1 <= h2.position.boundingRect.x2 && 
+    h1.position.boundingRect.x2 >= h2.position.boundingRect.x1 &&
+    Math.abs(h1.position.boundingRect.y1 - h2.position.boundingRect.y1) <= 5;
+  }
+
   const addHighlight = (highlight) => {
     console.log("Saving highlight", highlight);
 
-    setHighlights([{ ...highlight, id: getNextId() }, ...highlights]);
+    var overlapFound = 0;
+    for (const h of highlights.values()) {
+      if (highlightsOverlap(highlight, h)) {
+            //alert('Remove: ' + h);
+            overlapFound = 1;
+            break;
+          }  
+    }
+    if (overlapFound == 1) {
+      setHighlights(highlights.filter(
+        function(hl) {
+          return !highlightsOverlap(hl, highlight)
+          }
+        ));
+    }
+    else {
+      setHighlights([{ ...highlight, id: getNextId() }, ...highlights]);
+    }
   }
 
   const updateHighlight = (highlightId, position, content) => {
@@ -325,6 +348,7 @@ function App() {
         {sideList('left')}
       </Drawer>
       <div
+        onClick={(event) => {for (const v of highlights.values()) console.log(v.position.boundingRect) } }
         className={clsx(classes.content, {
           [classes.contentShift]: open,
         })}
@@ -338,7 +362,9 @@ function App() {
             position: "relative"
           }}
         >
-          <RenderOnPdfAvailable pdfDocument={pdfDocument} beforeLoad={<div />}>
+          <RenderOnPdfAvailable
+            pdfDocument={pdfDocument}
+            beforeLoad={<div />}>
             {pdfDocument => (
               <PdfHighlighter
                 pdfDocument={pdfDocument}

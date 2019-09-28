@@ -54,10 +54,6 @@ def models():
 
 
 @app.route("/ent", methods=['POST'])
-@app.route("/addClassifier", methods=['POST'])
-@app.route("/parseFile", methods=['POST'])
-
-
 def ent():
     """Get entities for displaCy ENT visualizer."""
     model = request.json["model"]
@@ -69,9 +65,11 @@ def ent():
         for ent in doc.ents
     ]}
 
+@app.route("/addClassifier", methods=['POST'])
 def addClassifier():
     pass
 
+@app.route("/parseFile", methods=['POST'])
 def parseFile():
     model = request.json["model"]
     text = request.json["text"]

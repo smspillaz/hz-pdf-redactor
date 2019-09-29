@@ -248,7 +248,7 @@ function findTextsOnNode(texts) {
   let textsTypes = texts.reduce((all, t) => ({
     ...all,
     [t.word]: t.label
-  }));
+  }), {});
   let textsSet = Array.from([...new Set(texts.map(r => r.word))]);
   let highlights = [];
 

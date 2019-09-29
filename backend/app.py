@@ -105,10 +105,12 @@ def update():
                      *urlparse(request.json["url"]).path.split("/")[3:]),
         redactions["labelSnippits"]
     )
-    train_model(train_data=train_data, model=model) #, new_model_name='redacted', output_dir=Path.home() / 'models' / 'latest')
+    losses = train_model(train_data=train_data, model=model) #, new_model_name='redacted', output_dir=Path.home() / 'models' / 'latest')
     return {
         "status": "ok",
-        "result": "redacted"
+        "result": {
+            "losses": losses
+        }
     }
 
 
@@ -165,6 +167,8 @@ def train_model(train_data, labels = ["REDACTED"], model=None, new_model_name='n
         nlp.meta['name'] = new_model_name  # rename model
         nlp.to_disk(output_dir)
         print("Saved model to", output_dir)
+
+    return losses
 
 
 if __name__ == "__main__":

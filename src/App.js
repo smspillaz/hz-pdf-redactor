@@ -6,6 +6,7 @@ import Button from '@material-ui/core/Button';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Drawer from '@material-ui/core/Drawer';
 import MenuItem from '@material-ui/core/MenuItem';
+import Snackbar from '@material-ui/core/Snackbar';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
 import Typography from '@material-ui/core/Typography';
@@ -13,6 +14,8 @@ import { makeStyles, useTheme } from '@material-ui/core/styles';
 import MenuIcon from '@material-ui/icons/Menu';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import CloseIcon from '@material-ui/icons/Close';
 import Select from '@material-ui/core/Select';
 import Divider from '@material-ui/core/Divider';
 import TreeView from '@material-ui/lab/TreeView';
@@ -130,6 +133,17 @@ const useStyles = makeStyles(theme => ({
       paddingTop: '18px',
       paddingBottom: '18px'
     }
+  },
+  buttonProgress: {
+    color: orange[500],
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -12,
+    marginLeft: -12,
+  },
+  close: {
+    padding: theme.spacing(0.5),
   },
 }));
 
@@ -333,6 +347,12 @@ function App() {
   const [pdfDocument, setPdfDocument] = React.useState(null);
   const [url, setUrl] = React.useState('');
   const [highlightType, setHighlightType] = React.useState('PERSON');
+  const [waitingForAnnotate, setWaitingForAnnotate] = React.useState(false);
+  const [waitingForSuggest, setWaitingForSuggest] = React.useState(false);
+  const [lossNotification, setLossNotification] = React.useState({
+    recent: false,
+    loss: 0
+  });
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -455,8 +475,10 @@ function App() {
           </Typography>
           <Button
             color="inherit"
+            disabled={waitingForAnnotate}
             onClick={() => {
               const offsets = findHighlightOffsets(pdfText, highlights[url]);
+              setWaitingForAnnotate(true);
               fetch('http://localhost:5000/update', {
                 method: 'POST',
                 headers: {
@@ -475,15 +497,23 @@ function App() {
                     }))
                   }
                 }),
-              });
+              })
+              .then(r => r.json())
+              .then(r => setLossNotification({
+                recent: true,
+                loss: r.result.losses.ner
+              }))
+              .then(() => setWaitingForAnnotate(false));
             }}
           >
             Annotate
+            {waitingForAnnotate && <CircularProgress size={24} className={classes.buttonProgress} />}
           </Button>
           <Button
             color="inherit"
-            disabled={!pdfText}
+            disabled={!pdfText || waitingForSuggest}
             onClick={() => {
+              setWaitingForSuggest(true);
               fetch('http://localhost:5000/ent', {
                 method: 'POST',
                 headers: {
@@ -510,10 +540,11 @@ function App() {
                     })))
                   });
                 }
-              );
+              ).then(() => setWaitingForSuggest(false));
             }}
           >
             Suggest
+            {waitingForSuggest && <CircularProgress size={24} className={classes.buttonProgress} />}
           </Button>
           <Select
             value={highlightType}
@@ -539,7 +570,6 @@ function App() {
         {sideList('left')}
       </Drawer>
       <div
-        onClick={(event) => {for (const v of highlights[url].values()) console.log(v.position.boundingRect) } }
         className={clsx(classes.content, {
           [classes.contentShift]: open,
         })}
@@ -644,6 +674,42 @@ function App() {
           </RenderOnPdfAvailable>
         </div>
       </div>
+      <Snackbar
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        open={lossNotification.recent}
+        autoHideDuration={6000}
+        onClose={() => setLossNotification({
+          recent: false,
+          loss: lossNotification.loss
+        })}
+        ContentProps={{
+          'aria-describedby': 'message-id',
+        }}
+        message={<span id="message-id">Loss: {lossNotification.loss}</span>}
+        action={[
+          <Button key="undo" color="secondary" size="small" onClick={() => setLossNotification({
+            recent: false,
+            loss: lossNotification.loss
+          })}>
+            CLOSE
+          </Button>,
+          <IconButton
+            key="close"
+            aria-label="close"
+            color="inherit"
+            className={classes.close}
+            onClick={() => setLossNotification({
+              recent: false,
+              loss: lossNotification.loss
+            })}
+          >
+            <CloseIcon />
+          </IconButton>,
+        ]}
+      />
     </div>
   );
 }

@@ -168,4 +168,4 @@ def train_model(train_data, labels = ["REDACTED"], model=None, new_model_name='n
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=False)

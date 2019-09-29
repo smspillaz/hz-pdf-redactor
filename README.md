@@ -1,5 +1,11 @@
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## [REDACTED]
+
+An active-learning annotation tool to help you redact stuff in documents without losing the formatting.
+
+![Annotations](screenshots/human_annotations.png)
+
 ## Available Scripts
 
 In the project directory, you can run:

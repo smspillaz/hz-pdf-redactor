@@ -70,7 +70,7 @@ def redact_pdf(location, snippitLabels):
     options = pdf_redactor.RedactorOptions()
 
     options.content_filters = [
-        (re.compile(re.escape(label["text"])), lambda m: "." * len(label["text"]))
+        (re.compile(re.escape(label["text"])), lambda m: "." * (len(label["text"]) + random.randrange(1, 5)))
         for label in snippitLabels
     ]
 

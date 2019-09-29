@@ -602,12 +602,15 @@ function App() {
                         }))
                       }}
                       comment={highlight.comment}
-                      onClick={ () => {                        
-                        setHighlights(highlights.filter(
-                          function(hl) {
-                            return !highlightsOverlap(hl, highlight)
-                            }
-                          ))
+                      onClick={() => {
+                        setHighlights({
+                          ...highlights,
+                          [url]: highlights[url].filter(
+                              function(hl) {
+                                  return !highlightsOverlap(hl, highlight)
+                              }
+                          )
+                        })
                       }}
                     />
                   ) : (
